@@ -4,10 +4,7 @@ import {defer} from "./defer.js";
 const EXT = "zip";
 
 export function getZipPacker() {
-  if (typeof navigator.storage?.getDirectory !== 'function') {
-    throw new Error('File System Access API is not supported in this browser.');
-  }
-  const tempName = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}.${EXT}`;
+  const chunks = [];
   let pendingPipe = null;
   let itemReady = defer();
   let zipReady = defer();
@@ -20,9 +17,6 @@ export function getZipPacker() {
   }
 
   async function prepare() {
-    const root = await navigator.storage.getDirectory();
-    const handle = await root.getFileHandle(tempName, {create: true});
-    const writable = await handle.createWritable();
     const zipStream = makeZip(async function*() {
       let item;
       while ((item = await itemReady.promise)) {
@@ -31,7 +25,14 @@ export function getZipPacker() {
         zipReady = defer();
       }
     }());
-    pendingPipe = zipStream.pipeTo(writable);
+    pendingPipe = (async () => {
+      const reader = zipStream.getReader();
+      for (;;) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+    })();
   }
 
   async function pack({blob, filename}) {
@@ -46,6 +47,10 @@ export function getZipPacker() {
   async function save() {
     itemReady.resolve(null); // signal end of items
     await pendingPipe;
-    return {tempName, downloadName: `image-picka-${new Date().toISOString()}.${EXT}`};
+    return {
+      blob: new Blob(chunks),
+      downloadName: `image-picka-${new Date().toISOString()}.${EXT}`
+    };
   }
 }
+

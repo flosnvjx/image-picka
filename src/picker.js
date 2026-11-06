@@ -152,7 +152,7 @@ function init({tabs: originalTabs, env}) {
 		invert() {
 			getImages().forEach(i => i.toggleCheck());
 		},
-		async save(e) {
+    async save(e) {
       // make it easier to close tab on Android
       if (IS_ANDROID) {
         history.pushState(null, "", location.href);
@@ -179,26 +179,19 @@ function init({tabs: originalTabs, env}) {
           env,
           batchId: BATCH_ID
         });
-        if (result?.tempName) {
-          const root = await navigator.storage.getDirectory();
-          const fileHandle = await root.getFileHandle(result.tempName);
-          const file = await fileHandle.getFile();
-          const url = URL.createObjectURL(file);
+        if (result?.blob) {
+          const url = URL.createObjectURL(result.blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = result.downloadName || result.tempName;
+          a.download = result.downloadName;
           a.style.display = "none";
           document.body.appendChild(a);
           a.click();
           a.remove();
-          // copilot suggested adding a delay here or download may abort in some browsers becuase of URL.revokeObjectURL being called too early
           await timeout(1000);
           URL.revokeObjectURL(url);
-          // NOTE: can't remove file until download complete
-          // await root.removeEntry(result.tempName);
         }
         if (pref.get("closePickerAfterSave")) {
-          // NOTE: closing the tab will close the download confirmation in Firefox Android
           await browser.runtime.sendMessage({method: "closeTab"});
         }
       } catch (err) {
@@ -208,7 +201,7 @@ function init({tabs: originalTabs, env}) {
         e.target.disabled = false;
         e.target.classList.remove("loading");
       }
-		},
+    },
 		copyUrl() {
 			const input = document.createElement("textarea");
 			input.value = getUrls(getImages()).join("\n");

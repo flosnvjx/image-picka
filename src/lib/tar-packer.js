@@ -1,11 +1,8 @@
 import {createTarPacker} from "modern-tar";
 
 export function getTarPacker() {
-  if (typeof navigator.storage?.getDirectory !== 'function') {
-    throw new Error('File System Access API is not supported in this browser.');
-  }
-  const tempName = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}.tar`;
   const {readable, controller} = createTarPacker();
+  const chunks = [];
   let pendingPipe = null;
   return {
     prepare,
@@ -16,10 +13,14 @@ export function getTarPacker() {
   }
 
   async function prepare() {
-    const root = await navigator.storage.getDirectory();
-    const handle = await root.getFileHandle(tempName, {create: true});
-    const writable = await handle.createWritable();
-    pendingPipe = readable.pipeTo(writable);
+    pendingPipe = (async () => {
+      const reader = readable.getReader();
+      for (;;) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+    })();
   }
 
   async function pack({blob, filename}) {
@@ -28,13 +29,16 @@ export function getTarPacker() {
       size: blob.size,
       type: 'file',
     })
-    // const writer = fileStream.getWriter();
     await blob.stream().pipeTo(fileStream);
   }
 
   async function save() {
     controller.finalize();
     await pendingPipe;
-    return {tempName, downloadName: `image-picka-${new Date().toISOString()}.tar`};
+    return {
+      blob: new Blob(chunks),
+      downloadName: `image-picka-${new Date().toISOString()}.tar`
+    };
   }
 }
+

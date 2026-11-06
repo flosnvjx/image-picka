@@ -208,7 +208,7 @@ browser.commands.onCommand.addListener(name => {
 });
 
 imageCache.clearAll();
-cleanupOPFS().catch(console.error);
+//cleanupOPFS().catch(console.error);
 
 async function cleanupOPFS() {
   const root = await navigator.storage.getDirectory();
