@@ -210,17 +210,6 @@ browser.commands.onCommand.addListener(name => {
 imageCache.clearAll();
 //cleanupOPFS().catch(console.error);
 
-async function cleanupOPFS() {
-  const root = await navigator.storage.getDirectory();
-  for await (const entry of root.values()) {
-    if (entry.kind === "directory") {
-      continue;
-    }
-    if (entry.name.startsWith("temp-")) {
-      await root.removeEntry(entry.name);
-    }
-  }
-}
 
 function createDynamicIcon({file, enabled, onupdate}) {
 	const SIZES = [16, 32, 64];
